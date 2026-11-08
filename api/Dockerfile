@@ -7,6 +7,7 @@ COPY api/ api/
 COPY workers/ workers/
 COPY console/standalone console/standalone
 COPY field-app field-app
+COPY ui ui
 COPY demo demo
 WORKDIR /srv/api
 ENV PYTHONPATH=/srv/api:/srv

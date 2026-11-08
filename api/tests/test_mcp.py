@@ -1,7 +1,6 @@
+from app.mcp_server import GroundProofTools
 from conftest import fc, square
 from test_pipeline import upload
-
-from app.mcp_server import GroundProofTools
 
 
 def test_agent_can_answer_at_risk_question(client, analyst):

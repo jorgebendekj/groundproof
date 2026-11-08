@@ -1,19 +1,48 @@
-// Smoke test: node console/tests/smoke.spec.cjs (needs a running API with demo data: python -m app.demo)
-const { chromium } = require('playwright');
-const BASE = process.env.GP_URL || 'http://localhost:8000';
+// End-to-end UI test. Needs a running API with demo data (python -m app.demo) and ICEYE_ENABLED=true.
+// Usage: NODE_PATH=$(npm root -g) node console/tests/smoke.spec.cjs   (SHOTS=/dir to keep screenshots)
+const { chromium, devices } = require('playwright');
+const fs = require('fs'), path = require('path'), os = require('os');
+const BASE = process.env.GP_URL || 'http://localhost:8000', SHOTS = process.env.SHOTS || fs.mkdtempSync(path.join(os.tmpdir(), 'gp-'));
+const ok = (c, m) => { if (!c) throw new Error('ASSERT: ' + m); console.log('  ✓', m); };
 (async () => {
   const b = await chromium.launch(); const errs = [];
-  const ctx = await b.newContext({ viewport: { width: 1300, height: 800 }, permissions: ['geolocation'], geolocation: { latitude: -12.5, longitude: -55.7, accuracy: 5 } });
-  const p = await ctx.newPage(); p.on('pageerror', e => errs.push(e.message));
-  await p.goto(BASE + '/console/'); await p.click('#login');
-  await p.waitForSelector('#legend .pill'); const legend = await p.textContent('#legend');
-  if (!/cleared_after_2020 \d+/.test(legend) || !/compliant/.test(legend)) throw new Error('legend: ' + legend);
-  await p.click('#tour'); await p.waitForSelector('#selx img', { timeout: 15000 });   // cleared plot shows before/after
-  const sel = await p.textContent('#sel'); if (!/cleared_after_2020/.test(sel) || !/Alert #/.test(sel)) throw new Error('tour: ' + sel);
-  await p.screenshot({ path: process.env.SHOT || '/tmp/claude-0/run/console.png' });
-  // field app
-  const f = await ctx.newPage(); f.on('pageerror', e => errs.push(e.message)); await f.goto(BASE + '/field/'); await f.click('#go');
-  await f.waitForSelector('#app:not([hidden])'); const txt = await f.textContent('#plots'); console.log('field plots view:', txt.trim().slice(0, 60));
-  if (errs.length) throw new Error('page errors: ' + errs.join('; '));
-  console.log('SMOKE OK'); await b.close();
+  const geo = { latitude: -12.43, longitude: -55.1, accuracy: 6 };
+  const ctx = await b.newContext({ viewport: { width: 1360, height: 840 }, permissions: ['geolocation'], geolocation: geo, acceptDownloads: true });
+  const p = await ctx.newPage(); p.on('pageerror', e => errs.push(e.message)); p.on('console', m => m.type() === 'error' && !/401|Failed to load resource/.test(m.text()) && errs.push(m.text()));
+  console.log('console (analyst)');
+  await p.goto(BASE + '/console/'); await p.waitForSelector('#login:not([hidden])'); await p.screenshot({ path: SHOTS + '/1-login.png' });
+  await p.fill('#em', 'analyst@example.com'); await p.fill('#pw', 'wrong'); await p.click('#lgo'); await p.waitForSelector('.toast.err'); ok(true, 'wrong password shows a friendly error');
+  await p.click('[data-u="analyst@example.com"]'); await p.click('#lgo'); await p.waitForSelector('#legend .chip');
+  ok(/Compliant/.test(await p.textContent('#legend')), 'map legend loaded'); ok(await p.locator('#map polygon').count() >= 200, '200+ plots drawn');
+  await p.screenshot({ path: SHOTS + '/2-overview.png' });
+  await p.click('#legend [data-s="compliant"]'); const hiddenCount = await p.locator('#map polygon').count(); ok(hiddenCount < 100, 'legend chip filters plots'); await p.click('#legend [data-s="compliant"]');
+  await p.click('#tour'); await p.waitForSelector('#caption:not(.hidden)'); ok(/compliant plot/i.test(await p.textContent('#caption')), 'tour step 1'); await p.click('#nx');
+  await p.waitForSelector('#panel .imgs img'); ok(/Cleared after 2020/.test(await p.textContent('#panel')), 'tour step 2 shows cleared plot'); ok((await p.locator('#panel .imgs img').count()) === 2, 'before/after imagery shown');
+  await p.screenshot({ path: SHOTS + '/3-cleared-plot.png' });
+  await p.selectOption('#as', { index: 0 }); await p.click('#ab'); await p.waitForSelector('.toast:has-text("Assigned")'); ok(true, 'assigned to field partner');
+  const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#bp')]); ok(/\.pdf$/.test(dl.suggestedFilename()), 'plot evidence PDF downloads');
+  await p.click('[data-t="review"]'); await p.waitForSelector('#panel .item'); await p.screenshot({ path: SHOTS + '/4-review.png' }); ok(true, 'review queue lists alerts');
+  await p.click('#panel .item >> nth=0'); await p.waitForSelector('#panel .imgs img'); await p.click('text=Request field visit'); await p.waitForSelector('.toast:has-text("Decision saved")'); ok(true, 'decision saved');
+  await p.click('[data-t="suppliers"]'); const [dl2] = await Promise.all([p.waitForEvent('download'), p.click('[data-pdf]')]); ok(dl2.suggestedFilename().includes('supplier'), 'supplier pack downloads');
+  await p.click('[data-t="upload"]');
+  const gj = JSON.stringify({ type: 'FeatureCollection', features: [0, 1, 2].map(i => ({ type: 'Feature', properties: { id: 'UI-' + i }, geometry: { type: 'Polygon', coordinates: [[[-55.5 + i * .02, -12.9], [-55.49 + i * .02, -12.9], [-55.49 + i * .02, -12.89], [-55.5 + i * .02, -12.89], [-55.5 + i * .02, -12.9]]] } })).concat([{ type: 'Feature', properties: { id: 'UI-bad' }, geometry: { type: 'Point', coordinates: [900, 10] } }]) });
+  fs.writeFileSync(SHOTS + '/up.geojson', gj); await p.setInputFiles('#uff', SHOTS + '/up.geojson'); await p.fill('#us', 'UI Test Farm'); await p.click('#ub');
+  await p.waitForSelector('#ures .card'); ok(/3 of 4 plots added/.test(await p.textContent('#ures')) && /outside WGS84/.test(await p.textContent('#ures')), 'upload reports 3/4 stored with a clear reason for the bad one');
+  await p.screenshot({ path: SHOTS + '/5-upload.png' });
+  await ctx.clearCookies(); await p.click('#out'); await p.fill('#em', 'admin@example.com'); await p.fill('#pw', process.env.GP_ADMIN_PW || 'change-me-admin'); await p.click('#lgo'); await p.waitForSelector('[data-t="tasking"]'); await p.click('[data-t="tasking"]'); await p.waitForSelector('#panel .card'); await p.screenshot({ path: SHOTS + '/6-tasking.png' });
+  console.log('field app (phone)');
+  const ph = await b.newContext({ ...devices['iPhone 13'], permissions: ['geolocation'], geolocation: geo });
+  const f = await ph.newPage(); f.on('pageerror', e => errs.push(e.message));
+  await f.goto(BASE + '/field/'); await f.fill('#em', 'field@example.com'); await f.fill('#pw', 'demo-field'); await f.click('#go'); await f.waitForSelector('#plots .item');
+  ok(/DEMO-CLEARED/.test(await f.textContent('#plots')), 'assigned plot appears for the field partner'); await f.screenshot({ path: SHOTS + '/7-field-list.png' });
+  await f.click('#plots .item'); await f.waitForFunction(() => /accuracy/.test(document.querySelector('#gps').textContent)); ok(true, 'GPS fix shown');
+  await f.setInputFiles('#photo', { name: 'p.jpg', mimeType: 'image/jpeg', buffer: Buffer.from('\xff\xd8\xff\xe0FIELDPHOTO' + 'x'.repeat(500), 'binary') });
+  await f.waitForFunction(() => !document.querySelector('#send').disabled); await f.screenshot({ path: SHOTS + '/8-field-capture.png' });
+  await f.click('#send'); await f.waitForSelector('.toast:has-text("uploaded")', { timeout: 15000 }); ok(true, 'capture uploaded and signed');
+  await p.goto(BASE + '/console/'); await p.waitForSelector('#legend .chip'); await p.click('#tour'); await p.click('#nx'); await p.waitForSelector('text=Signature verified'); ok(true, 'console shows the verified field capture');
+  const mob = await b.newContext({ ...devices['iPhone 13'] }); const m = await mob.newPage(); await m.goto(BASE + '/console/'); await m.click('[data-u="buyer@example.com"]'); await m.click('#lgo'); await m.waitForSelector('#legend .chip');
+  ok(await m.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), 'console has no horizontal scroll on a phone'); await m.screenshot({ path: SHOTS + '/9-console-phone.png' });
+  ok(!(await m.locator('[data-t="review"]').count()), 'buyer does not see staff-only tabs');
+  if (errs.length) throw new Error('browser errors: ' + errs.join(' | '));
+  console.log('ALL UI CHECKS PASSED; screenshots in', SHOTS); await b.close();
 })().catch(e => { console.error('FAIL', e.message); process.exit(1) });

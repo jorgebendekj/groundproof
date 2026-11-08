@@ -179,3 +179,11 @@ def plots_geojson(db: DB, user: Annotated[User, Depends(current_user)]):
         feats.append({"type": "Feature", "geometry": p.geometry, "properties": {
             k: o[k] for k in ("id", "external_id", "supplier", "commodity", "status", "confidence", "area_ha")}})
     return {"type": "FeatureCollection", "features": feats}
+
+
+@router.get("/users")
+def list_users(db: DB, user: Annotated[User, Depends(require(*STAFF))], role: str | None = None):
+    q = select(User)
+    if role:
+        q = q.where(User.role == role)
+    return [{"id": u.id, "email": u.email, "role": u.role} for u in db.scalars(q).all()]

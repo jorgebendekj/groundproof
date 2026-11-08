@@ -1,6 +1,5 @@
 """initial schema (generated from the current models; later changes use `alembic revision --autogenerate`)"""
 from alembic import op
-
 from app import models  # noqa: F401
 from app.db import Base
 

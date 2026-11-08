@@ -1,58 +1,183 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GroundProof Console</title>
+<title>GroundProof</title><meta name="color-scheme" content="light dark">
+<link rel="stylesheet" href="/ui/ui.css">
 <style>
-:root{--bg:#0b1220;--fg:#e6edf7;--mut:#8aa0bd;--card:#131d33;--ok:#2ecc71;--risk:#f5a623;--bad:#e5484d;--und:#8e9aaf}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px system-ui;display:grid;grid-template-columns:1fr 360px;height:100vh}
-#map{background:#0f1a2e;width:100%;height:100%}aside{padding:12px;overflow:auto;background:var(--card)}
-button,input,select{font:inherit;padding:6px 10px;margin:2px;border-radius:6px;border:1px solid #2b3b5c;background:#1b2a47;color:var(--fg)}
-button{cursor:pointer}h3{margin:12px 0 6px}small,.mut{color:var(--mut)}.pill{padding:1px 8px;border-radius:99px;font-size:12px;color:#000}
-img{width:48%;image-rendering:pixelated;border-radius:4px}.row{display:flex;justify-content:space-between;gap:6px}
-polygon,circle{stroke:#000;stroke-width:.3;cursor:pointer;vector-effect:non-scaling-stroke}polygon:hover{stroke:#fff}
-.disc{font-size:11px;color:var(--mut);margin-top:10px}@media(max-width:800px){body{grid-template-columns:1fr;grid-template-rows:50vh 1fr}}
+body{display:flex;flex-direction:column;height:100vh;overflow:hidden}
+#login{margin:auto;width:min(94vw,400px)}#login .logo{width:44px;height:44px;border-radius:13px}
+main{flex:1;display:grid;grid-template-columns:1fr 440px;min-height:0}
+#mapwrap{position:relative;background:var(--map);min-height:0}#map{width:100%;height:100%;cursor:grab;touch-action:none}#map:active{cursor:grabbing}
+#map polygon,#map circle{stroke:var(--surface);stroke-width:1;vector-effect:non-scaling-stroke;cursor:pointer;transition:opacity .15s}
+#map polygon:hover{stroke:var(--text);stroke-width:2}#map .sel{stroke:var(--text);stroke-width:3}
+.maptools{position:absolute;left:12px;top:12px;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100% - 24px)}
+.mapbtns{position:absolute;right:12px;bottom:12px;display:flex;flex-direction:column;gap:6px}
+.caption{position:absolute;left:12px;right:12px;bottom:12px;max-width:520px}
+aside{background:var(--surface);border-left:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+#panel{overflow:auto;padding:16px;flex:1}
+.pad{padding:12px 16px 0}
+.item{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;font:inherit;color:inherit}.item:hover{border-color:var(--brand)}
+.imgs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.imgs figure{margin:0}.imgs img{width:100%;aspect-ratio:1;object-fit:cover;image-rendering:pixelated;border-radius:8px;border:1px solid var(--line)}
+.imgs figcaption{font-size:12px;color:var(--muted);margin-top:2px}
+.bar{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden}.bar>i{display:block;height:100%;background:var(--brand)}
+ul.why{margin:6px 0 0;padding-left:18px}ul.why li{margin:2px 0}
+@media(max-width:600px){#who{display:none}.topbar{padding:8px 12px;gap:8px}#tour{padding:0 10px}}
+@media(max-width:900px){body{height:auto;overflow:auto}main{display:block}#mapwrap{height:48vh}aside{border-left:0;border-top:1px solid var(--line)}#panel{overflow:visible}}
 </style></head><body>
-<svg id="map" role="img" aria-label="Plot map"></svg>
-<aside>
-<div id="auth"><b>GroundProof</b> <small>EUDR evidence console</small><br>
-<input id="em" placeholder="email" value="analyst@example.com"><input id="pw" type="password" placeholder="password" value="demo-analyst"><button id="login">Sign in</button></div>
-<div id="app" hidden>
- <div class="row"><span id="who" class="mut"></span><span><button id="tour">▶ Demo tour</button><button id="refresh">↻</button></span></div>
- <div id="legend"></div>
- <h3>Upload plots</h3><input type="file" id="file" accept=".geojson,.json,.zip,.csv"><input id="sup" placeholder="supplier" value="Uploaded supplier"><button id="up">Upload</button><div id="upres" class="mut"></div>
- <h3>Selected</h3><div id="sel" class="mut">Click a plot on the map.</div>
- <h3>Review queue</h3><div id="queue"></div>
+<div id="login" class="card stack" hidden>
+  <div class="row"><div class="logo" aria-hidden="true">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M12 9c0-3 2-5 6-5 0 4-2 6-6 5M12 13c0-2-1.5-4-5-4 0 3 1.5 5 5 4"/></svg></div>
+    <div><h1>GroundProof</h1><div class="muted small">Deforestation-cutoff evidence for EUDR due diligence</div></div></div>
+  <form id="lf" class="stack"><div><label for="em">Email or username</label><input id="em" autocomplete="username" required></div>
+  <div><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password" required></div>
+  <button class="btn primary lg" id="lgo">Sign in</button></form>
+  <div id="demo" hidden><div class="small muted" style="margin-bottom:6px">Demo accounts (tap to fill)</div>
+   <div class="row"><button class="chip plain btnlike" data-u="analyst@example.com" data-p="demo-analyst">Analyst</button>
+   <button class="chip plain btnlike" data-u="buyer@example.com" data-p="demo-buyer">Buyer</button>
+   <button class="chip plain btnlike" data-u="admin@example.com" data-p="change-me-admin">Admin</button></div></div>
+  <div class="disclaimer">Outputs are evidence to support due diligence, not a certification.</div>
 </div>
-<p class="disc">Outputs are evidence to support due diligence, not certification. Contains modified Copernicus Sentinel data.</p>
-</aside>
+
+<header class="topbar" id="top" hidden>
+  <div class="brand"><div class="logo" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9M12 9c0-3 2-5 6-5 0 4-2 6-6 5M12 13c0-2-1.5-4-5-4 0 3 1.5 5 5 4"/></svg></div>GroundProof</div>
+  <span class="grow"></span><span id="who" class="muted small"></span>
+  <button class="btn sm" id="tour" hidden>▶ Tour</button><button class="btn sm" id="out">Sign out</button>
+</header>
+
+<main id="app" hidden>
+  <section id="mapwrap" aria-label="Plot map">
+    <svg id="map" role="img" aria-label="Map of supplier plots coloured by status"></svg>
+    <div class="maptools" id="legend"></div>
+    <div class="mapbtns"><button class="btn sm" id="zin" aria-label="Zoom in">＋</button><button class="btn sm" id="zout" aria-label="Zoom out">－</button><button class="btn sm" id="fit" aria-label="Fit all plots">⤢</button></div>
+    <div class="caption card hidden" id="caption"></div>
+  </section>
+  <aside>
+    <div class="pad"><div class="tabs" role="tablist" id="tabs"></div></div>
+    <div id="panel" aria-live="polite"></div>
+    <div class="disclaimer" style="padding:10px 16px">Evidence to support due diligence, not certification. Contains modified Copernicus Sentinel data.</div>
+  </aside>
+</main>
+<div class="toast-host" id="toasts" role="status"></div>
+
 <script type="module">
-const C={compliant:'#2ecc71',at_risk:'#f5a623',cleared_after_2020:'#e5484d',undetermined:'#8e9aaf',unchecked:'#3b4a66'};
-let token=null,plots=[],bbox,selected=null;const $=s=>document.querySelector(s);
-const api=async(p,o={})=>{const r=await fetch('/api'+p,{...o,headers:{...(o.headers||{}),Authorization:'Bearer '+token,...(o.json?{'Content-Type':'application/json'}:{})},body:o.json?JSON.stringify(o.json):o.body});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).detail||r.status);return r.headers.get('content-type')?.includes('json')?r.json():r.blob()};
+const $=s=>document.querySelector(s),LABEL={compliant:'Compliant',at_risk:'At risk',cleared_after_2020:'Cleared after 2020',undetermined:'Undetermined',unchecked:'Not checked'};
+const COL={compliant:'#1f9d55',at_risk:'#e8a317',cleared_after_2020:'#d1343b',undetermined:'#7c8b95',unchecked:'#a7b3ba'};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-$('#login').onclick=async()=>{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('#em').value,password:$('#pw').value})});if(!r.ok)return alert('Login failed');const j=await r.json();token=j.access_token;$('#auth').hidden=true;$('#app').hidden=false;$('#who').textContent=$('#em').value+' ('+j.role+')';await load()};
-async function load(){const g=await api('/eo/plots.geojson');plots=g.features;const xs=[],ys=[];const walk=c=>typeof c[0]==='number'?(xs.push(c[0]),ys.push(c[1])):c.forEach(walk);plots.forEach(f=>walk(f.geometry.coordinates));bbox=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];draw();legend();queue()}
-const proj=([x,y],b=bbox)=>[(x-b[0])/(b[2]-b[0]||1)*1000,(1-(y-b[1])/(b[3]-b[1]||1))*600];
-function draw(view=bbox){const m=$('#map');m.setAttribute('viewBox','-20 -20 1040 640');m.innerHTML='';
- for(const f of plots){const p=f.properties,col=C[p.status]||C.unchecked;let el;
-  if(f.geometry.type==='Point'){const [x,y]=proj(f.geometry.coordinates,view);el=document.createElementNS('http://www.w3.org/2000/svg','circle');el.setAttribute('cx',x);el.setAttribute('cy',y);el.setAttribute('r',4)}
-  else{const ring=(f.geometry.type==='Polygon'?f.geometry.coordinates:f.geometry.coordinates[0])[0];el=document.createElementNS('http://www.w3.org/2000/svg','polygon');el.setAttribute('points',ring.map(c=>proj(c,view).join(',')).join(' '))}
-  el.setAttribute('fill',col);el.setAttribute('fill-opacity',p.id===selected?1:.75);el.onclick=()=>select(p.id);el.innerHTML='<title>'+esc(p.external_id)+' – '+esc(p.status)+'</title>';m.appendChild(el)}}
-function legend(){const n={};plots.forEach(f=>n[f.properties.status]=(n[f.properties.status]||0)+1);$('#legend').innerHTML=Object.entries(n).map(([k,v])=>`<span class="pill" style="background:${C[k]||C.unchecked}">${esc(k)} ${v}</span> `).join('')}
-async function select(id){selected=id;draw();const p=await api('/plots/'+id);const alerts=(await api('/alerts')).filter(a=>a.plot_id===id);
- $('#sel').innerHTML=`<b>${esc(p.external_id)}</b> <span class="pill" style="background:${C[p.status]}">${esc(p.status)}</span> <small>conf ${p.confidence??'–'}</small><br><small>${esc(p.supplier)} · ${esc(p.commodity)} · ${p.area_ha??'point'} ha</small><ul>${(p.notes||[]).map(n=>'<li>'+esc(n)+'</li>').join('')}</ul>
- <button id="bc">Cutoff check</button><button id="bm">Monitor</button><button id="bq">Request scene (quote)</button><div id="selx"></div>`;
- $('#bc').onclick=async()=>{await api('/plots/'+id+'/check',{method:'POST'});await load();select(id)};
- $('#bm').onclick=async()=>{await api('/plots/'+id+'/monitor',{method:'POST',json:{}});await load();select(id)};
- $('#bq').onclick=async()=>{try{const o=await api('/tasking/quote',{method:'POST',json:{plot_id:id,start:'2025-01-01',end:'2025-01-10'}});$('#selx').textContent=`Quote #${o.id}: €${o.quote.price_eur}, ETA ${o.quote.eta_days} d (mock). Approval by an admin required.`}catch(e){$('#selx').textContent=e.message}};
- for(const a of alerts)await alertCard(a,$('#selx'))}
-async function alertCard(a,host){const d=document.createElement('div');d.innerHTML=`<h3>Alert #${a.id} ${esc(a.type)}</h3><small>${esc(a.state)} · conf ${a.confidence} · first seen ${esc(a.first_seen.slice(0,10))} · ~${a.details.clearing_ha} ha · radar ${a.details.sar_corroborates?'corroborates':'no'}</small><br><small>Scenes: ${esc(a.scene_ids.join(', '))}</small><br>`;host.appendChild(d);
- for(const w of['before','after']){try{const b=await api(`/alerts/${a.id}/preview/${w}`);const i=document.createElement('img');i.alt=w;i.src=URL.createObjectURL(b);d.appendChild(i)}catch{}}
- if(['analyst','admin'].some(r=>$('#who').textContent.includes(r))){for(const [k,l] of[['confirm','Confirm'],['reject','Reject'],['request_field_check','Field check']]){const b=document.createElement('button');b.textContent=l;b.onclick=async()=>{await api(`/alerts/${a.id}/decision`,{method:'POST',json:{decision:k}});await load();select(a.plot_id)};d.appendChild(b)}}}
-async function queue(){try{const q=await api('/review/queue');$('#queue').innerHTML=q.alerts.map(a=>`<div><a href="#" data-p="${a.plot_id}">Alert #${a.id}</a> ${esc(a.type)} <small>${a.confidence}</small></div>`).join('')||'<span class="mut">Empty</span>';document.querySelectorAll('#queue a').forEach(x=>x.onclick=e=>{e.preventDefault();select(+x.dataset.p)})}catch{$('#queue').textContent='(analyst only)'}}
-$('#refresh').onclick=load;
-$('#up').onclick=async()=>{const f=$('#file').files[0];if(!f)return;const fd=new FormData();fd.append('file',f);fd.append('supplier_name',$('#sup').value);try{const r=await api('/plots/upload',{method:'POST',body:fd});$('#upres').textContent=`Stored ${r.stored}/${r.total}. `+Object.entries(r.counts).map(([k,v])=>k+':'+v).join(' ');await load()}catch(e){$('#upres').textContent=e.message}};
-$('#tour').onclick=async()=>{const find=n=>plots.find(f=>f.properties.external_id===n);const steps=[['DEMO-COMPLIANT','Step 1: a compliant soy plot. Stable crop seasonality, no clearing after 31 Dec 2020.'],['DEMO-CLEARED','Step 2: the neighbouring plot. Sentinel-2 shows NDVI collapse in Aug 2022 and Sentinel-1 radar agrees.']];
- for(const [n,t] of steps){const f=find(n);if(!f)return alert('Run `python -m app.demo` first');const [x0,y0,x1,y1]=(()=>{const c=f.geometry.coordinates[0];const xs=c.map(a=>a[0]),ys=c.map(a=>a[1]);const cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;return[cx-.03,cy-.02,cx+.03,cy+.02]})();
-  bbox=[x0,y0,x1,y1];draw(bbox);await select(f.properties.id);$('#selx').insertAdjacentHTML('afterbegin','<p><b>'+esc(t)+'</b></p>');await new Promise(r=>setTimeout(r,6000))}
- await load()};
+let token=sessionStorage.gpTok||null,me=null,plots=[],sel=null,tab='plots',hidden=new Set(),view=null,full=null,busy=0;
+const chip=s=>`<span class="chip ${esc(s)}">${esc(LABEL[s]||s)}</span>`;
+function toast(m,err){const d=document.createElement('div');d.className='toast'+(err?' err':'');d.textContent=m;$('#toasts').appendChild(d);setTimeout(()=>d.remove(),err?6000:3500)}
+async function api(p,o={}){const r=await fetch('/api'+p,{...o,headers:{Authorization:'Bearer '+token,...(o.json?{'Content-Type':'application/json'}:{})},body:o.json?JSON.stringify(o.json):o.body});
+ if(r.status===401){logout();throw new Error('Session expired, please sign in again')}
+ if(!r.ok){const j=await r.json().catch(()=>({}));throw new Error(typeof j.detail==='string'?j.detail:'Request failed ('+r.status+')')}
+ return r.headers.get('content-type')?.includes('json')?r.json():r.blob()}
+async function act(btn,fn,ok){const t=btn.innerHTML;btn.disabled=true;btn.innerHTML='<span class="spinner"></span>';try{await fn();ok&&toast(ok)}catch(e){toast(e.message,true)}finally{btn.disabled=false;btn.innerHTML=t}}
+async function download(path,name,btn){await act(btn,async()=>{const b=await api(path);const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click()},'Download started')}
+
+/* ---- auth ---- */
+fetch('/health').then(r=>r.json()).then(h=>{if(h.demo)$('#demo').hidden=false}).catch(()=>{});
+document.querySelectorAll('#demo [data-u]').forEach(b=>b.onclick=()=>{$('#em').value=b.dataset.u;$('#pw').value=b.dataset.p});
+$('#lf').onsubmit=async e=>{e.preventDefault();await act($('#lgo'),async()=>{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('#em').value.trim(),password:$('#pw').value})});
+ if(!r.ok)throw new Error('Wrong email or password');const j=await r.json();token=j.access_token;sessionStorage.gpTok=token;await boot()})};
+function logout(){token=null;sessionStorage.removeItem('gpTok');$('#login').hidden=false;$('#top').hidden=$('#app').hidden=true}
+$('#out').onclick=logout;
+async function boot(){me=await api('/auth/me');if(me.role==='field_partner'){location.href='/field/';return}
+ $('#login').hidden=true;$('#top').hidden=$('#app').hidden=false;$('#who').textContent=me.email+' · '+me.role.replace('_',' ');
+ const staff=['admin','analyst'].includes(me.role);
+ const tabs=[['plots','Plots'],...(staff?[['review','Review']]:[]),['suppliers','Suppliers'],...(staff?[['tasking','Tasking']]:[]),['upload','Upload']];
+ $('#tabs').innerHTML=tabs.map(([k,l])=>`<button class="tab" role="tab" data-t="${k}" aria-selected="${k===tab}">${l}</button>`).join('');
+ document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.t));await loadPlots();setTab(tab)}
+function setTab(t){tab=t;document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.t===t));render()}
+
+/* ---- map ---- */
+let proj=null;
+async function loadPlots(){const g=await api('/eo/plots.geojson');plots=g.features;const xs=[],ys=[];const walk=c=>typeof c[0]==='number'?(xs.push(c[0]),ys.push(c[1])):c.forEach(walk);plots.forEach(f=>walk(f.geometry.coordinates));
+ $('#tour').hidden=!plots.some(f=>f.properties.external_id==='DEMO-CLEARED');
+ if(!xs.length){drawMap();legend();return}
+ const b=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)],k=1000/Math.max((b[2]-b[0])||1e-3,((b[3]-b[1])||1e-3)*1.0);proj=([x,y])=>[(x-b[0])*k,(b[3]-y)*k];
+ full=[-30,-30,(b[2]-b[0])*k+60,(b[3]-b[1])*k+60];view=view||[...full];drawMap();legend()}
+function drawMap(){const m=$('#map');m.setAttribute('viewBox',(view||[0,0,100,100]).join(' '));m.setAttribute('preserveAspectRatio','xMidYMid meet');
+ if(!plots.length){m.innerHTML='';return}let h='';
+ for(const f of plots){const p=f.properties;if(hidden.has(p.status))continue;const col=COL[p.status]||COL.unchecked,cls=p.id===sel?' class="sel"':'';
+  if(f.geometry.type==='Point'){const [x,y]=proj(f.geometry.coordinates);h+=`<circle data-id="${p.id}"${cls} cx="${x}" cy="${y}" r="6" fill="${col}"><title>${esc(p.external_id)}</title></circle>`}
+  else{const ring=(f.geometry.type==='Polygon'?f.geometry.coordinates:f.geometry.coordinates[0])[0];h+=`<polygon data-id="${p.id}"${cls} points="${ring.map(c=>proj(c).map(n=>n.toFixed(1)).join(',')).join(' ')}" fill="${col}" fill-opacity="${p.id===sel?1:.8}"><title>${esc(p.external_id)} · ${esc(LABEL[p.status]||p.status)}</title></polygon>`}}
+ m.innerHTML=h}
+function legend(){const n={};plots.forEach(f=>n[f.properties.status]=(n[f.properties.status]||0)+1);
+ $('#legend').innerHTML=Object.keys(LABEL).filter(k=>n[k]).map(k=>`<button class="chip ${k} btnlike ${hidden.has(k)?'off':''}" data-s="${k}" aria-pressed="${!hidden.has(k)}" title="Show/hide">${LABEL[k]} ${n[k]}</button>`).join('');
+ document.querySelectorAll('#legend [data-s]').forEach(b=>b.onclick=()=>{hidden.has(b.dataset.s)?hidden.delete(b.dataset.s):hidden.add(b.dataset.s);drawMap();legend()})}
+const mapEl=$('#map');let drag=null;
+mapEl.addEventListener('click',e=>{const t=e.target.closest('[data-id]');if(t&&!mapEl._moved)pick(+t.dataset.id)});
+mapEl.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY,v:[...view]};mapEl._moved=false});
+mapEl.addEventListener('pointermove',e=>{if(!drag)return;const r=mapEl.getBoundingClientRect(),s=Math.max(view[2]/r.width,view[3]/r.height);const dx=e.clientX-drag.x,dy=e.clientY-drag.y;if(Math.abs(dx)+Math.abs(dy)>4)mapEl._moved=true;view=[drag.v[0]-dx*s,drag.v[1]-dy*s,drag.v[2],drag.v[3]];mapEl.setAttribute('viewBox',view.join(' '))});
+addEventListener('pointerup',()=>{drag=null;setTimeout(()=>mapEl._moved=false)});
+function zoom(f,cx,cy){const [x,y,w,h]=view;cx??=x+w/2;cy??=y+h/2;view=[cx-(cx-x)*f,cy-(cy-y)*f,w*f,h*f];mapEl.setAttribute('viewBox',view.join(' '))}
+mapEl.addEventListener('wheel',e=>{e.preventDefault();const r=mapEl.getBoundingClientRect(),[x,y,w,h]=view,s=Math.max(w/r.width,h/r.height);zoom(e.deltaY>0?1.2:.83,x+(e.clientX-r.left)*s,y+(e.clientY-r.top)*s)},{passive:false});
+$('#zin').onclick=()=>zoom(.7);$('#zout').onclick=()=>zoom(1.4);$('#fit').onclick=()=>{view=[...full];drawMap()};
+function flyTo(id){const f=plots.find(p=>p.properties.id===id);if(!f)return;const r=(f.geometry.type==='Polygon'?f.geometry.coordinates:f.geometry.coordinates[0])[0].map(proj);const xs=r.map(p=>p[0]),ys=r.map(p=>p[1]),w=Math.max(...xs)-Math.min(...xs)||20,pad=Math.max(w*3,40);
+ view=[Math.min(...xs)-pad,Math.min(...ys)-pad*.6,(w+2*pad),(w+2*pad)*.6];drawMap()}
+
+/* ---- panel ---- */
+function render(){const p=$('#panel');({plots:viewPlots,review:viewReview,suppliers:viewSuppliers,tasking:viewTasking,upload:viewUpload})[tab](p)}
+const loading=p=>p.innerHTML='<div class="stack"><div class="skeleton" style="height:22px;width:60%"></div><div class="skeleton" style="height:90px"></div><div class="skeleton" style="height:90px"></div></div>';
+const empty=(t,s)=>`<div class="empty"><b>${t}</b>${s||''}</div>`;
+async function pick(id){sel=id;tab='plots';document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.t==='plots'));drawMap();await viewPlots($('#panel'))}
+async function viewPlots(p){
+ if(!sel){const n=plots.length;const staff=['admin','analyst'].includes(me.role);
+  p.innerHTML=`<div class="stack"><h2>${n} plots</h2><p class="muted">Select a plot on the map to see its status, the reasons behind it and its evidence.</p>
+   ${staff?'<button class="btn" id="runall">Run monitoring on all plots</button><p class="small muted">Checks new satellite scenes for every plot. Can take a minute on large portfolios.</p>':''}
+   ${n?'':empty('No plots yet','Use the Upload tab to add your supplier plots.')}</div>`;
+  $('#runall')&&($('#runall').onclick=e=>act(e.currentTarget,async()=>{const r=await api('/monitoring/run-now',{method:'POST',json:{}});await loadPlots();viewPlots(p);toast(r.alerts_created.length?r.alerts_created.length+' new alerts':'No new clearing found')}));return}
+ loading(p);let d,alerts,caps=[],staff=['admin','analyst'].includes(me.role);
+ try{[d,alerts]=await Promise.all([api('/plots/'+sel),api('/alerts')]);alerts=alerts.filter(a=>a.plot_id===sel);caps=await api(`/plots/${sel}/captures`)}catch(e){p.innerHTML=empty('Could not load this plot',esc(e.message));return}
+ p.innerHTML=`<div class="stack">
+  <div class="row between"><h2>${esc(d.external_id||'Plot '+d.id)}</h2>${chip(d.status)}</div>
+  <dl class="kv"><dt>Supplier</dt><dd>${esc(d.supplier)}</dd><dt>Commodity</dt><dd>${esc(d.commodity)} · ${esc(d.country)}</dd><dt>Area</dt><dd>${d.area_ha?d.area_ha+' ha':'Point location'}</dd>
+   <dt>Confidence</dt><dd>${d.confidence==null?'–':Math.round(d.confidence*100)+'%'}</dd><dt>Data check</dt><dd>${esc(d.validation_status)}</dd></dl>
+  ${d.notes?.length?`<div><h3>Why this status</h3><ul class="why small">${d.notes.map(n=>'<li>'+esc(n)+'</li>').join('')}</ul></div>`:''}
+  <div class="row">${staff?'<button class="btn sm" id="bc">Run cutoff check</button><button class="btn sm" id="bm">Check for new clearing</button>':''}<button class="btn sm" id="bp">Evidence pack (PDF)</button></div>
+  ${staff?'<div id="assign"></div>':''}
+  <div id="alerts" class="stack"></div>
+  <div><h3>Field evidence</h3>${caps.length?caps.map(c=>`<div class="row between small" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(c.captured_at.slice(0,16).replace('T',' '))} · ±${c.accuracy_m} m</span><span class="chip ${c.verification.valid&&c.verification.chain_linked?'compliant':'cleared_after_2020'}">${c.verification.valid&&c.verification.chain_linked?'Signature verified':'Tampered'}</span></div>`).join(''):'<p class="muted small">No field captures yet.</p>'}</div></div>`;
+ $('#bc')&&($('#bc').onclick=e=>act(e.currentTarget,async()=>{await api(`/plots/${sel}/check`,{method:'POST',json:{}});await loadPlots();viewPlots(p)},'Cutoff check complete'));
+ $('#bm')&&($('#bm').onclick=e=>act(e.currentTarget,async()=>{const r=await api(`/plots/${sel}/monitor`,{method:'POST',json:{}});await loadPlots();viewPlots(p);toast(r.alert_id?'New clearing alert raised':'No new clearing found')}));
+ $('#bp').onclick=e=>download(`/evidence/plot/${sel}?format=pdf`,`plot-${sel}-evidence.pdf`,e.currentTarget);
+ if(staff){try{const us=await api('/users?role=field_partner');$('#assign').innerHTML=us.length?`<div class="row"><select id="as" aria-label="Field partner">${us.map(u=>`<option value="${u.id}">${esc(u.email)}</option>`).join('')}</select><button class="btn sm" id="ab">Assign for field visit</button></div>`:'';
+  $('#ab')&&($('#ab').onclick=e=>act(e.currentTarget,()=>api(`/plots/${sel}/assign/${$('#as').value}`,{method:'POST'}),'Assigned to field partner'))}catch{}}
+ for(const a of alerts)await alertCard(a,$('#alerts'),staff)}
+async function alertCard(a,host,staff){const d=document.createElement('div');d.className='card stack';
+ d.innerHTML=`<div class="row between"><b>Possible clearing</b><span class="chip ${a.state==='confirmed'?'cleared_after_2020':a.state==='rejected'?'compliant':'at_risk'}">${esc(a.state.replace(/_/g,' '))}</span></div>
+ <div class="small muted">First seen ${esc(a.first_seen.slice(0,10))} · about ${a.details.clearing_ha} ha · confidence ${Math.round(a.confidence*100)}% · radar ${a.details.sar_corroborates?'agrees':'did not confirm'}</div><div class="imgs"></div>
+ <div class="small muted">Scenes: ${esc(a.scene_ids.join(', '))}</div>${staff?'<div class="row"></div>':''}`;host.appendChild(d);
+ const im=d.querySelector('.imgs');for(const [w,l] of [['before','Before (2020 baseline)'],['after','Latest clear scene']]){try{const u=URL.createObjectURL(await api(`/alerts/${a.id}/preview/${w}`));im.insertAdjacentHTML('beforeend',`<figure><img src="${u}" alt="${l}"><figcaption>${l}</figcaption></figure>`)}catch{}}
+ if(staff)for(const [k,l,c] of [['confirm','Confirm clearing','danger'],['reject','Not clearing','ok'],['request_field_check','Request field visit','']]){const b=document.createElement('button');b.className='btn sm '+c;b.textContent=l;b.onclick=e=>act(b,async()=>{await api(`/alerts/${a.id}/decision`,{method:'POST',json:{decision:k}});await loadPlots();viewPlots($('#panel'))},'Decision saved');d.lastElementChild.appendChild(b)}}
+async function viewReview(p){loading(p);try{const q=await api('/review/queue');
+ p.innerHTML=`<div class="stack"><h2>Review queue</h2>${q.alerts.map(a=>`<button class="item" data-p="${a.plot_id}"><div class="row between"><b>Alert #${a.id}</b><span class="chip at_risk">${Math.round(a.confidence*100)}%</span></div><div class="small muted">${a.type==='clearing_optical'?'Optical + radar clearing':'Radar-only clearing'} · first seen ${esc(a.first_seen.slice(0,10))}</div></button>`).join('')||empty('All clear','No alerts are waiting for review.')}
+  ${q.undetermined_plots.length?`<h3>Undetermined plots (${q.undetermined_plots.length})</h3>`+q.undetermined_plots.map(x=>`<button class="item" data-p="${x.id}"><b>${esc(x.external_id)}</b> <span class="small muted">${esc(x.supplier)}</span></button>`).join(''):''}</div>`;
+ p.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{flyTo(plots.find(f=>f.properties.id===+b.dataset.p)?.properties.id);pick(+b.dataset.p)})}catch(e){p.innerHTML=empty('Not available',esc(e.message))}}
+async function viewSuppliers(p){loading(p);try{const s=await api('/suppliers');
+ p.innerHTML=`<div class="stack"><h2>Suppliers</h2>${s.map(x=>`<div class="card stack"><div class="row between"><b>${esc(x.name)}</b><span class="muted small">${esc(x.country||'')}</span></div><div class="row"><button class="btn sm primary" data-pdf="${x.id}">Evidence pack (PDF)</button><button class="btn sm" data-json="${x.id}">JSON</button></div></div>`).join('')||empty('No suppliers yet','Upload plots to create one.')}</div>`;
+ p.querySelectorAll('[data-pdf]').forEach(b=>b.onclick=()=>download(`/evidence/supplier/${b.dataset.pdf}?format=pdf`,`supplier-${b.dataset.pdf}-evidence.pdf`,b));
+ p.querySelectorAll('[data-json]').forEach(b=>b.onclick=()=>download(`/evidence/supplier/${b.dataset.json}`,`supplier-${b.dataset.json}-evidence.json`,b))}catch(e){p.innerHTML=empty('Could not load',esc(e.message))}}
+async function viewTasking(p){loading(p);try{const t=await api('/tasking');const pct=Math.min(100,Math.round(100*t.month_spend_eur/(t.budget_eur||1)));
+ p.innerHTML=`<div class="stack"><h2>Commercial scenes</h2><div class="card stack"><div class="row between small"><span>Monthly budget</span><b>€${Math.round(t.month_spend_eur)} / €${Math.round(t.budget_eur)}</b></div><div class="bar"><i style="width:${pct}%"></i></div>
+  <div class="small muted">${t.enabled?'Tasking enabled. Orders need an admin to approve.':'Tasking is switched off (ICEYE_ENABLED=false). Quotes still work.'} Provider: <b>mock</b>.</div></div>
+  ${t.orders.map(o=>`<div class="card stack"><div class="row between"><b>Order #${o.id}</b><span class="chip plain">${esc(o.status)}</span></div><div class="small muted">Plot ${o.plot_id} · €${o.quote.price_eur} · ETA ${o.quote.eta_days} days · ${esc(o.window.join(' → '))}</div>
+   <div class="row">${o.status==='quoted'&&me.role==='admin'?`<button class="btn sm primary" data-ap="${o.id}">Approve</button>`:''}${!['quoted','delivered','rejected'].includes(o.status)?`<button class="btn sm" data-poll="${o.id}">Check status</button>`:''}</div></div>`).join('')||empty('No orders','Open a plot and use “Request scene” after a quote.')}</div>`;
+ p.querySelectorAll('[data-ap]').forEach(b=>b.onclick=()=>act(b,async()=>{await api(`/tasking/${b.dataset.ap}/approve`,{method:'POST'});viewTasking(p)},'Order approved'));
+ p.querySelectorAll('[data-poll]').forEach(b=>b.onclick=()=>act(b,async()=>{await api(`/tasking/${b.dataset.poll}/poll`,{method:'POST'});viewTasking(p)}))}catch(e){p.innerHTML=empty('Not available',esc(e.message))}}
+function viewUpload(p){p.innerHTML=`<form class="stack" id="uf"><h2>Add supplier plots</h2><p class="muted small">GeoJSON, zipped shapefile or CSV with lat/lon columns. We check each shape, repair small errors and flag duplicates and overlaps.</p>
+ <div><label for="uff">File</label><input id="uff" type="file" accept=".geojson,.json,.zip,.csv" required></div><div><label for="us">Supplier name</label><input id="us" value="" placeholder="e.g. Fazenda Boa Vista" required></div>
+ <div class="row"><div class="grow"><label for="uc">Commodity</label><select id="uc"><option>soy</option><option>beef</option><option>coffee</option></select></div><div class="grow"><label for="ur">Country</label><select id="ur"><option value="BR">Brazil</option><option value="PY">Paraguay</option><option value="BO">Bolivia</option></select></div></div>
+ <button class="btn primary lg" id="ub">Upload and validate</button><div id="ures"></div></form>`;
+ $('#uf').onsubmit=e=>{e.preventDefault();act($('#ub'),async()=>{const fd=new FormData();fd.append('file',$('#uff').files[0]);fd.append('supplier_name',$('#us').value);fd.append('commodity',$('#uc').value);fd.append('country',$('#ur').value);
+  const r=await api('/plots/upload',{method:'POST',body:fd});await loadPlots();const bad=r.report.filter(x=>x.status!=='valid');
+  $('#ures').innerHTML=`<div class="card stack"><b>${r.stored} of ${r.total} plots added</b><div class="row">${Object.entries(r.counts).map(([k,v])=>`<span class="chip ${k==='valid'?'compliant':k==='invalid'?'cleared_after_2020':'at_risk'}">${esc(k)} ${v}</span>`).join('')}</div>
+   ${bad.length?`<ul class="why small">${bad.slice(0,8).map(x=>`<li><b>${esc(x.external_id)}</b>: ${esc(x.notes.join('; '))}</li>`).join('')}${bad.length>8?`<li>…and ${bad.length-8} more</li>`:''}</ul>`:'<div class="small muted">Everything looks good.</div>'}</div>`;toast('Upload complete')})}}
+
+/* ---- guided tour (user-paced) ---- */
+const STEPS=[['DEMO-COMPLIANT','1 of 2 · A compliant plot','Stable crop pattern, no forest loss after 31 Dec 2020.'],['DEMO-CLEARED','2 of 2 · Its neighbour was cleared','Satellite optical change plus radar agree: vegetation was lost in August 2022. An analyst can confirm and export the evidence pack.']];
+$('#tour').onclick=()=>step(0);
+async function step(i){const cap=$('#caption');if(i>=STEPS.length){cap.classList.add('hidden');return}const [ext,t,s]=STEPS[i],f=plots.find(x=>x.properties.external_id===ext);
+ if(!f){toast('Demo plots not loaded. Run: python -m app.demo',true);return}flyTo(f.properties.id);await pick(f.properties.id);
+ cap.classList.remove('hidden');cap.innerHTML=`<div class="stack"><div><b>${t}</b><div class="small muted">${s}</div></div><div class="row"><button class="btn sm primary" id="nx">${i<STEPS.length-1?'Next':'Finish'}</button><button class="btn sm" id="sk">Close</button></div></div>`;
+ $('#nx').onclick=()=>step(i+1);$('#sk').onclick=()=>cap.classList.add('hidden')}
+if(token)boot().catch(()=>logout());else logout();
 </script></body></html>

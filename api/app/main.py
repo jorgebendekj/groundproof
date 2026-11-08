@@ -38,11 +38,11 @@ def health():
     with SessionLocal() as db:
         db.execute(text("select 1"))
     return {"status": "ok", "version": ALGORITHM_VERSION, "cutoff_adapter": s.cutoff_adapter,
-            "imagery_mode": s.imagery_mode, "tasking_enabled": s.iceye_enabled}
+            "imagery_mode": s.imagery_mode, "tasking_enabled": s.iceye_enabled, "demo": s.demo_seed}
 
 
 ROOT = Path(__file__).resolve().parents[2]
-for mount, rel in (("/console", "console/standalone"), ("/field", "field-app")):
+for mount, rel in (("/console", "console/standalone"), ("/field", "field-app"), ("/ui", "ui")):
     d = ROOT / rel
     if d.is_dir():
         app.mount(mount, StaticFiles(directory=d, html=True), name=mount.strip("/"))

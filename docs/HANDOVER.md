@@ -1,5 +1,16 @@
 # Handover
 
+## Launch checklist: what makes it live and real (priority order)
+1. **Decide hosting + domain + EU region**, then deploy with HTTPS (not done; a reverse proxy such as Caddy is needed). Provide: cloud account/server, domain.
+2. **Strong secrets**: `JWT_SECRET`, `ADMIN_PASSWORD`, set `DEMO_SEED=false`.
+3. **Earth Engine service account** (paid licence for commercial use) -> real Whisp baseline. Needs a live test with your credentials.
+4. **Real imagery**: a machine with internet access so the Sentinel pixel-reading code can be written and tested (not possible in the build sandbox). Optional keys: Copernicus Data Space, Planetary Computer.
+5. **A real validated cleared-plot polygon** (MapBiomas Alerta) and a few known-good plots, so detector accuracy can be measured before any client relies on it.
+6. **C2PA certificate** for trusted field-evidence signing.
+7. **ICEYE partner agreement** when you want real tasking.
+8. **Client onboarding**: user/organization management screens and password reset are NOT built yet (users are created by seed only). Needs a decision on how clients sign up.
+9. Optional: SMTP (notifications are not built), NASA FIRMS key, God's Eye View keys (globe needs wiring on a machine with its build).
+
 ## What I need from you
 | Item | Why it's needed | Where to create it | Variable in `.env` | How to test | Required or optional |
 |---|---|---|---|---|---|

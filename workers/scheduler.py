@@ -9,12 +9,11 @@ import sys
 import time
 from datetime import date, timedelta
 
-from sqlalchemy import select
-
 from app.bootstrap import init_db, seed
 from app.db import SessionLocal
 from app.models import Plot, User
 from app.services import run_monitoring
+from sqlalchemy import select
 
 INTERVAL_S = 24 * 3600
 

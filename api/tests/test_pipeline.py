@@ -98,3 +98,17 @@ def test_budget_cap_and_flag(client, analyst, admin, monkeypatch):
     monkeypatch.setattr(s, "tasking_monthly_budget_eur", 1e6)
     monkeypatch.setattr(s, "iceye_enabled", False)
     assert client.post(f"/api/tasking/{o['id']}/approve", headers=admin).status_code == 409
+
+
+def test_reject_restores_baseline_status_and_notes_are_consistent(client, analyst):
+    org = client.get("/api/auth/me", headers=analyst).json()["organization_id"]
+    pid = upload(client, analyst, fc(square(-56.5, -13.5, 0.01, "cleared_post_2020", id="rej", clear_date="2022-05-01")),
+                 supplier_name="Reject Co", organization_id=org).json()["report"][0]["plot_id"]
+    client.post(f"/api/plots/{pid}/check", headers=analyst)
+    aid = client.post(f"/api/plots/{pid}/monitor", headers=analyst, json={"until": "2024-06-30"}).json()["alert_id"]
+    d = client.get(f"/api/plots/{pid}", headers=analyst).json()
+    assert d["status"] == "cleared_after_2020"
+    assert not any("no clearing seen" in n for n in d["notes"])
+    client.post(f"/api/alerts/{aid}/decision", headers=analyst, json={"decision": "reject"})
+    d = client.get(f"/api/plots/{pid}", headers=analyst).json()
+    assert d["status"] == "at_risk" and d["reviewer_decision"] == "reject"   # back to baseline: forest at cutoff, clearing rejected

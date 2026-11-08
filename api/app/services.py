@@ -31,11 +31,13 @@ def plot_key(p: Plot) -> str:
 
 
 def _latest_cutoff(db: Session, plot_id: int) -> PlotResult | None:
+    """Latest *pure* cutoff-adapter result (never a recomputed/fused one)."""
     runs = db.scalars(select(CheckRun.id).where(CheckRun.plot_id == plot_id, CheckRun.type == "cutoff")).all()
     if not runs:
         return None
-    return db.scalars(select(PlotResult).where(PlotResult.check_run_id.in_(runs))
-                      .order_by(PlotResult.id.desc())).first()
+    rows = db.scalars(select(PlotResult).where(PlotResult.check_run_id.in_(runs))
+                      .order_by(PlotResult.id.desc())).all()
+    return next((r for r in rows if "whisp_columns" in (r.evidence_refs or {})), None)
 
 
 def recompute_status(db: Session, plot: Plot, run: CheckRun, user: User | None = None) -> PlotResult:
