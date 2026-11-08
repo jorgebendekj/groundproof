@@ -12,7 +12,7 @@ from . import ALGORITHM_VERSION
 from .bootstrap import init_db, seed
 from .config import get_settings
 from .db import SessionLocal
-from .routers import field, plots, review
+from .routers import ai, field, plots, review
 
 
 @asynccontextmanager
@@ -30,6 +30,7 @@ app = FastAPI(title="GroundProof API", version=ALGORITHM_VERSION, lifespan=lifes
 app.include_router(plots.router, prefix="/api")
 app.include_router(review.router, prefix="/api")
 app.include_router(field.router, prefix="/api")
+app.include_router(ai.router, prefix="/api")
 
 
 @app.get("/health")
@@ -38,7 +39,7 @@ def health():
     with SessionLocal() as db:
         db.execute(text("select 1"))
     return {"status": "ok", "version": ALGORITHM_VERSION, "cutoff_adapter": s.cutoff_adapter,
-            "imagery_mode": s.imagery_mode, "tasking_enabled": s.iceye_enabled, "demo": s.demo_seed}
+            "imagery_mode": s.imagery_mode, "tasking_enabled": s.iceye_enabled, "demo": s.demo_seed, "ai_mode": "anthropic" if s.ai_provider == "anthropic" and s.anthropic_api_key else "offline"}
 
 
 ROOT = Path(__file__).resolve().parents[2]

@@ -21,6 +21,7 @@
 | Planetary Computer key | Higher rate limits (anonymous works) | https://planetarycomputer.microsoft.com/account/request | `PC_SUBSCRIPTION_KEY` | `make check-keys` (presence only) | Optional |
 | NASA FIRMS map key | Active-fire layer | https://firms.modaps.eosdis.nasa.gov/api/map_key/ | `FIRMS_MAP_KEY` | `make check-keys` | Optional (not yet consumed by the API; GEV reads it) |
 | God's Eye View keys | Photorealistic 3D tiles, Cesium ion, voice | see `console/gev/.env.example` after `make gev` | `GOOGLE_MAPS_API_KEY`, `CESIUM_ION_TOKEN`, `OPENAI_API_KEY` | `make check-keys` (presence) | Optional (keyless Esri fallback) |
+| Anthropic API key | AI layer (plain-language explanations, assistant with tools). Offline templates work without it | https://console.anthropic.com/ | `ANTHROPIC_API_KEY`, `AI_PROVIDER=anthropic`, `AI_MODEL` | `make check-keys` (live call) | Optional |
 | ICEYE API credentials | Real tasking | ICEYE partner agreement | `ICEYE_API_KEY`, `ICEYE_ENABLED` | cannot test; real adapter not written | Later |
 | C2PA signing certificate | Trusted content credentials | a C2PA-conformant CA | `C2PA_CERT_PATH`, `C2PA_KEY_PATH` | `make check-keys` | Production |
 | SMTP credentials | Notifications | your mail provider | `SMTP_HOST/PORT/USER/PASSWORD` | `make check-keys` | Optional (not used by MVP yet) |
@@ -43,3 +44,9 @@ Synthetic imagery and cutoff data by default; detector accuracy on real imagery 
 
 ## Run the demo
 See README "5-minute demo script".
+
+## AI layer and MCP
+- **In-platform AI (`/api/ai/*`, Assistant tab, "Explain with AI" on each plot):** `AI_PROVIDER=offline` (default) answers from templates. `AI_PROVIDER=anthropic` + `ANTHROPIC_API_KEY` uses Claude with tool access to platform data. Tests use a simulated Claude server; **no real Claude call has been made yet**, so do one real check with your key.
+- **Guardrails (tested):** read-only tools only (no decisions, approvals or orders; quotes only); calls run as the signed-in user so buyers only see their organization's plots; supplier-controlled text is truncated/fenced as untrusted data; provider errors return a clean 502 without echoing the key; every AI call and tool use is in the audit log; all output carries the "not certification" disclaimer.
+- **Privacy:** in Anthropic mode, plot facts (ids, status, reasons, scene ids; not raw geometry) go to Anthropic. Review data-processing terms and EU-hosting requirements with your clients before enabling it.
+- **MCP (`python -m app.mcp_server`):** for external AI clients (Claude Desktop etc.); uses a GroundProof login, no AI key needed on our side. Example Claude Desktop config: command `python`, args `-m app.mcp_server`, env `GP_API_URL`, `GP_API_EMAIL`, `GP_API_PASSWORD`.

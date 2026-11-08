@@ -103,6 +103,19 @@ def chk_smtp():
         return INVALID, type(e).__name__
 
 
+def chk_ai():
+    k = env("ANTHROPIC_API_KEY")
+    if not k:
+        return MISSING, "AI layer runs in offline/templated mode"
+    if env("AI_PROVIDER") != "anthropic":
+        return INVALID, "key set but AI_PROVIDER is not 'anthropic', so it is ignored"
+    try:
+        r = httpx.get("https://api.anthropic.com/v1/models", headers={"x-api-key": k, "anthropic-version": "2023-06-01"}, timeout=20)
+        return (OK, "") if r.status_code == 200 else (INVALID, f"HTTP {r.status_code}")
+    except httpx.HTTPError as e:
+        return SKIP, f"network: {type(e).__name__}"
+
+
 def chk_gev():
     keys = ("GOOGLE_MAPS_API_KEY", "CESIUM_ION_TOKEN", "OPENAI_API_KEY")
     have = [k for k in keys if env(k)]
@@ -112,7 +125,7 @@ def chk_gev():
 CHECKS = [("JWT_SECRET", chk_jwt, "required"), ("ADMIN_PASSWORD", chk_admin, "required"),
           ("GEE_SERVICE_ACCOUNT_JSON", chk_gee, "optional (real Whisp)"), ("FIRMS_MAP_KEY", chk_firms, "optional"),
           ("CDSE_USERNAME/PASSWORD", chk_cdse, "optional"), ("PC_SUBSCRIPTION_KEY", chk_pc, "optional"),
-          ("ICEYE_API_KEY", chk_iceye, "later"), ("C2PA_CERT_PATH/KEY_PATH", chk_c2pa, "production"),
+          ("ANTHROPIC_API_KEY", chk_ai, "optional (AI layer)"), ("ICEYE_API_KEY", chk_iceye, "later"), ("C2PA_CERT_PATH/KEY_PATH", chk_c2pa, "production"),
           ("SMTP_*", chk_smtp, "optional"), ("GEV basemap/3D/voice keys", chk_gev, "optional")]
 
 if __name__ == "__main__":

@@ -19,6 +19,8 @@ aside{background:var(--surface);border-left:1px solid var(--line);display:flex;f
 .imgs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.imgs figure{margin:0}.imgs img{width:100%;aspect-ratio:1;object-fit:cover;image-rendering:pixelated;border-radius:8px;border:1px solid var(--line)}
 .imgs figcaption{font-size:12px;color:var(--muted);margin-top:2px}
 .bar{height:8px;background:var(--surface-2);border-radius:99px;overflow:hidden}.bar>i{display:block;height:100%;background:var(--brand)}
+.ai{border-left:3px solid var(--brand);background:var(--brand-soft)}.msg{padding:10px 12px;border-radius:12px;max-width:92%;white-space:pre-wrap}.msg.u{background:var(--brand);color:var(--on-brand);align-self:flex-end}.msg.a{background:var(--surface-2)}
+.aibadge{font-size:11px;font-weight:700;color:var(--brand);text-transform:uppercase;letter-spacing:.05em}
 ul.why{margin:6px 0 0;padding-left:18px}ul.why li{margin:2px 0}
 @media(max-width:600px){#who{display:none}.topbar{padding:8px 12px;gap:8px}#tour{padding:0 10px}}
 @media(max-width:900px){body{height:auto;overflow:auto}main{display:block}#mapwrap{height:48vh}aside{border-left:0;border-top:1px solid var(--line)}#panel{overflow:visible}}
@@ -82,7 +84,7 @@ $('#out').onclick=logout;
 async function boot(){me=await api('/auth/me');if(me.role==='field_partner'){location.href='/field/';return}
  $('#login').hidden=true;$('#top').hidden=$('#app').hidden=false;$('#who').textContent=me.email+' · '+me.role.replace('_',' ');
  const staff=['admin','analyst'].includes(me.role);
- const tabs=[['plots','Plots'],...(staff?[['review','Review']]:[]),['suppliers','Suppliers'],...(staff?[['tasking','Tasking']]:[]),['upload','Upload']];
+ const tabs=[['plots','Plots'],...(staff?[['review','Review']]:[]),['suppliers','Suppliers'],...(staff?[['tasking','Tasking']]:[]),['assistant','Assistant'],['upload','Upload']];
  $('#tabs').innerHTML=tabs.map(([k,l])=>`<button class="tab" role="tab" data-t="${k}" aria-selected="${k===tab}">${l}</button>`).join('');
  document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>setTab(b.dataset.t));await loadPlots();setTab(tab)}
 function setTab(t){tab=t;document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.t===t));render()}
@@ -115,7 +117,7 @@ function flyTo(id){const f=plots.find(p=>p.properties.id===id);if(!f)return;cons
  view=[Math.min(...xs)-pad,Math.min(...ys)-pad*.6,(w+2*pad),(w+2*pad)*.6];drawMap()}
 
 /* ---- panel ---- */
-function render(){const p=$('#panel');({plots:viewPlots,review:viewReview,suppliers:viewSuppliers,tasking:viewTasking,upload:viewUpload})[tab](p)}
+function render(){const p=$('#panel');({plots:viewPlots,review:viewReview,suppliers:viewSuppliers,tasking:viewTasking,assistant:viewAssistant,upload:viewUpload})[tab](p)}
 const loading=p=>p.innerHTML='<div class="stack"><div class="skeleton" style="height:22px;width:60%"></div><div class="skeleton" style="height:90px"></div><div class="skeleton" style="height:90px"></div></div>';
 const empty=(t,s)=>`<div class="empty"><b>${t}</b>${s||''}</div>`;
 async function pick(id){sel=id;tab='plots';document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.t==='plots'));drawMap();await viewPlots($('#panel'))}
@@ -132,12 +134,13 @@ async function viewPlots(p){
   <dl class="kv"><dt>Supplier</dt><dd>${esc(d.supplier)}</dd><dt>Commodity</dt><dd>${esc(d.commodity)} · ${esc(d.country)}</dd><dt>Area</dt><dd>${d.area_ha?d.area_ha+' ha':'Point location'}</dd>
    <dt>Confidence</dt><dd>${d.confidence==null?'–':Math.round(d.confidence*100)+'%'}</dd><dt>Data check</dt><dd>${esc(d.validation_status)}</dd></dl>
   ${d.notes?.length?`<div><h3>Why this status</h3><ul class="why small">${d.notes.map(n=>'<li>'+esc(n)+'</li>').join('')}</ul></div>`:''}
-  <div class="row">${staff?'<button class="btn sm" id="bc">Run cutoff check</button><button class="btn sm" id="bm">Check for new clearing</button>':''}<button class="btn sm" id="bp">Evidence pack (PDF)</button></div>
+  <div class="row">${staff?'<button class="btn sm" id="bc">Run cutoff check</button><button class="btn sm" id="bm">Check for new clearing</button>':''}<button class="btn sm" id="bp">Evidence pack (PDF)</button><button class="btn sm" id="bai">✨ Explain with AI</button></div><div id="aiout"></div>
   ${staff?'<div id="assign"></div>':''}
   <div id="alerts" class="stack"></div>
   <div><h3>Field evidence</h3>${caps.length?caps.map(c=>`<div class="row between small" style="padding:6px 0;border-bottom:1px solid var(--line)"><span>${esc(c.captured_at.slice(0,16).replace('T',' '))} · ±${c.accuracy_m} m</span><span class="chip ${c.verification.valid&&c.verification.chain_linked?'compliant':'cleared_after_2020'}">${c.verification.valid&&c.verification.chain_linked?'Signature verified':'Tampered'}</span></div>`).join(''):'<p class="muted small">No field captures yet.</p>'}</div></div>`;
  $('#bc')&&($('#bc').onclick=e=>act(e.currentTarget,async()=>{await api(`/plots/${sel}/check`,{method:'POST',json:{}});await loadPlots();viewPlots(p)},'Cutoff check complete'));
  $('#bm')&&($('#bm').onclick=e=>act(e.currentTarget,async()=>{const r=await api(`/plots/${sel}/monitor`,{method:'POST',json:{}});await loadPlots();viewPlots(p);toast(r.alert_id?'New clearing alert raised':'No new clearing found')}));
+ $('#bai').onclick=e=>act(e.currentTarget,async()=>{const r=await api('/ai/explain/plot/'+sel,{method:'POST'});$('#aiout').innerHTML=aiCard(r)});
  $('#bp').onclick=e=>download(`/evidence/plot/${sel}?format=pdf`,`plot-${sel}-evidence.pdf`,e.currentTarget);
  if(staff){try{const us=await api('/users?role=field_partner');$('#assign').innerHTML=us.length?`<div class="row"><select id="as" aria-label="Field partner">${us.map(u=>`<option value="${u.id}">${esc(u.email)}</option>`).join('')}</select><button class="btn sm" id="ab">Assign for field visit</button></div>`:'';
   $('#ab')&&($('#ab').onclick=e=>act(e.currentTarget,()=>api(`/plots/${sel}/assign/${$('#as').value}`,{method:'POST'}),'Assigned to field partner'))}catch{}}
@@ -171,6 +174,20 @@ function viewUpload(p){p.innerHTML=`<form class="stack" id="uf"><h2>Add supplier
   const r=await api('/plots/upload',{method:'POST',body:fd});await loadPlots();const bad=r.report.filter(x=>x.status!=='valid');
   $('#ures').innerHTML=`<div class="card stack"><b>${r.stored} of ${r.total} plots added</b><div class="row">${Object.entries(r.counts).map(([k,v])=>`<span class="chip ${k==='valid'?'compliant':k==='invalid'?'cleared_after_2020':'at_risk'}">${esc(k)} ${v}</span>`).join('')}</div>
    ${bad.length?`<ul class="why small">${bad.slice(0,8).map(x=>`<li><b>${esc(x.external_id)}</b>: ${esc(x.notes.join('; '))}</li>`).join('')}${bad.length>8?`<li>…and ${bad.length-8} more</li>`:''}</ul>`:'<div class="small muted">Everything looks good.</div>'}</div>`;toast('Upload complete')})}}
+
+const md=t=>esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>');
+const aiCard=r=>`<div class="card ai stack"><div class="aibadge">AI · ${esc(r.mode==='offline'?'offline summary':r.model)}</div><div style="white-space:pre-wrap">${md(r.text)}</div><div class="small muted">${esc(r.disclaimer)}</div></div>`;
+let chat=[];
+async function viewAssistant(p){let st={mode:'offline'};try{st=await api('/ai/status')}catch{}
+ p.innerHTML=`<div class="stack"><h2>Assistant</h2>
+  ${st.mode==='offline'?'<div class="card small">Offline mode: simple questions are answered from templates. Add an AI key (ANTHROPIC_API_KEY) on the server for open questions.</div>':`<div class="small muted">Powered by ${esc(st.model)}. Answers use only your platform data. It can explain and quote, never decide or order.</div>`}
+  <div class="row" id="sugg"><button class="chip plain btnlike" data-q="Which plots are at risk and why?">Which plots are at risk?</button><button class="chip plain btnlike" data-q="Give me a summary of my suppliers">Summarise my suppliers</button></div>
+  <div class="stack" id="log"></div>
+  <form class="row" id="cf" style="flex-wrap:nowrap"><input id="cq" placeholder="Ask about a plot or supplier…" aria-label="Question" required><button class="btn primary" id="cs">Ask</button></form>
+  <div class="small muted">${esc(st.disclaimer||'')}</div></div>`;
+ const log=$('#log');const draw=()=>{log.innerHTML=chat.map(m=>`<div class="msg ${m.role==='user'?'u':'a'}">${md(m.content)}</div>`).join('')||'<div class="empty">Ask a question to get started.</div>'};draw();
+ const send=async q=>{chat.push({role:'user',content:q});draw();$('#cq').value='';try{const r=await api('/ai/ask',{method:'POST',json:{question:q,history:chat.slice(0,-1)}});chat.push({role:'assistant',content:r.text})}catch(e){chat.push({role:'assistant',content:'Sorry, I could not answer: '+e.message})}draw();log.lastElementChild?.scrollIntoView({block:'nearest'})};
+ $('#cf').onsubmit=e=>{e.preventDefault();act($('#cs'),()=>send($('#cq').value))};p.querySelectorAll('#sugg [data-q]').forEach(b=>b.onclick=()=>send(b.dataset.q))}
 
 /* ---- guided tour (user-paced) ---- */
 const STEPS=[['DEMO-COMPLIANT','1 of 2 · A compliant plot','Stable crop pattern, no forest loss after 31 Dec 2020.'],['DEMO-CLEARED','2 of 2 · Its neighbour was cleared','Satellite optical change plus radar agree: vegetation was lost in August 2022. An analyst can confirm and export the evidence pack.']];

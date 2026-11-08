@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     min_clearing_ha: float = 0.5
     ndvi_drop_threshold: float = 0.25
     sar_drop_db: float = 3.0
+    # AI layer: 'offline' (templated, no network, default) or 'anthropic' (needs ANTHROPIC_API_KEY)
+    ai_provider: str = "offline"
+    anthropic_api_key: str = ""
+    ai_model: str = "claude-sonnet-5-5"
+    ai_base_url: str = "https://api.anthropic.com"
+    ai_max_tokens: int = 1200
     # C2PA / signing
     c2pa_cert_path: str = ""
     c2pa_key_path: str = ""

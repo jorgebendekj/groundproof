@@ -21,6 +21,10 @@ const ok = (c, m) => { if (!c) throw new Error('ASSERT: ' + m); console.log('  â
   await p.screenshot({ path: SHOTS + '/3-cleared-plot.png' });
   await p.selectOption('#as', { index: 0 }); await p.click('#ab'); await p.waitForSelector('.toast:has-text("Assigned")'); ok(true, 'assigned to field partner');
   const [dl] = await Promise.all([p.waitForEvent('download'), p.click('#bp')]); ok(/\.pdf$/.test(dl.suggestedFilename()), 'plot evidence PDF downloads');
+  await p.click('#bai'); await p.waitForSelector('#aiout .ai'); ok(/cleared after 2020/i.test(await p.textContent('#aiout')) && /not certification/.test(await p.textContent('#aiout')), 'Explain with AI shows a grounded, labelled summary');
+  await p.screenshot({ path: SHOTS + '/3b-ai-explain.png' });
+  await p.click('[data-t="assistant"]'); await p.click('#sugg [data-q]'); await p.waitForSelector('.msg.a'); ok(/DEMO-CLEARED|MT-/.test(await p.textContent('#log')), 'assistant answers from platform data');
+  await p.screenshot({ path: SHOTS + '/3c-assistant.png' });
   await p.click('[data-t="review"]'); await p.waitForSelector('#panel .item'); await p.screenshot({ path: SHOTS + '/4-review.png' }); ok(true, 'review queue lists alerts');
   await p.click('#panel .item >> nth=0'); await p.waitForSelector('#panel .imgs img'); await p.click('text=Request field visit'); await p.waitForSelector('.toast:has-text("Decision saved")'); ok(true, 'decision saved');
   await p.click('[data-t="suppliers"]'); const [dl2] = await Promise.all([p.waitForEvent('download'), p.click('[data-pdf]')]); ok(dl2.suggestedFilename().includes('supplier'), 'supplier pack downloads');
