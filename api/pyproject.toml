@@ -27,3 +27,9 @@ python_version = "3.12"
 ignore_missing_imports = true
 check_untyped_defs = true
 plugins = ["pydantic.mypy"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+[tool.setuptools.packages.find]
+include = ["app*"]

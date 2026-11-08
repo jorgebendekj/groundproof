@@ -2,8 +2,9 @@ import io
 import zipfile
 
 import shapefile
-from app import geo
 from conftest import fc, square
+
+from app import geo
 
 
 def test_geojson_valid_and_area():
