@@ -76,7 +76,10 @@ class GroundProofTools:
 
 
 def build_server():  # pragma: no cover - thin wiring
-    from mcp.server.fastmcp import FastMCP  # type: ignore[attr-defined]
+    try:  # mcp>=2 renamed FastMCP -> MCPServer
+        from mcp.server.mcpserver import MCPServer as FastMCP  # type: ignore[import-not-found]
+    except ImportError:
+        from mcp.server.fastmcp import FastMCP  # type: ignore[attr-defined,no-redef]
     base = os.environ.get("GP_API_URL", "http://localhost:8000")
     http = httpx.Client(base_url=base, timeout=60)
     tok = http.post("/api/auth/login", json={"email": os.environ["GP_API_EMAIL"],

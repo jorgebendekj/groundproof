@@ -12,5 +12,7 @@
 | M7 GEV integration | Partial | Overlay (eo proxy, 3 layers, tour pack, strip script) syntax-checked only; standalone console + demo tour browser-tested. AlphaEarth not done. |
 | M8 MCP + auth | Done | 4 tools tested via the REST API; roles + org scoping + audit tested. GEV tool-catalog registration not done. |
 
-Verified here: `pytest` 20 passed, `ruff`, `mypy`, Playwright smoke (console tour + field login).
+Verified here: `pytest` 21 passed, `ruff`, `mypy`, Playwright smoke (console tour + field login).
+Live local run (fresh DB, real uvicorn): Alembic upgrade (12 tables), daily worker over 202 plots (~30 s), HTTP end-to-end as admin/analyst (quote->approve->deliver->confirm, audit trail), 202-plot supplier PDF in 0.5 s, real MCP stdio server via the MCP client SDK. Bugs found and fixed by that run: `api/alembic/` shadowed the alembic package (renamed `migrations/`); MCP SDK 2.x renamed FastMCP.
+Not reachable from the build sandbox: Planetary Computer and Copernicus STAC (so real imagery untested), Docker daemon.
 Next: run compose on a machine with Docker; wire GEV overlay; real STAC reads; replace demo polygon with a verified one.

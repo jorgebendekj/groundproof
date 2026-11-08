@@ -26,3 +26,11 @@ def test_agent_can_answer_at_risk_question(client, analyst):
     assert pack["summary"] and pack["pdf_url"].endswith("format=pdf")
     assert t.plot_status("nonexistent-supplier")["error"]
     client.headers.pop("Authorization")
+
+
+def test_mcp_sdk_import_resolves():
+    """Regression: mcp 2.x renamed FastMCP -> MCPServer; the server must import under either."""
+    try:
+        from mcp.server.mcpserver import MCPServer  # noqa: F401
+    except ImportError:
+        from mcp.server.fastmcp import FastMCP  # noqa: F401

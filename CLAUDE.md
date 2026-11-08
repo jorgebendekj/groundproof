@@ -6,7 +6,7 @@ Platform for EU buyers to verify supplier plots (Brazil/Paraguay/Bolivia) were n
 `api/` FastAPI (app/: geo, adapters/, analytics/, evidence/, routers/, services, mcp_server) + tests; `workers/` daily scheduler; `console/standalone` demo console (served at /console), `console/overlay` + `console/scripts/setup-gev.sh` for God's Eye View; `field-app/` PWA (served at /field); `demo/`; `docs/` (DECISIONS, methods, PROGRESS, HANDOVER).
 
 ## Run / test
-`make install && make test` (20 tests, ~2 min, demo test is slow) · `make lint` (ruff+mypy) · `make demo` (seed + serve :8000, console at /console/) · `make smoke` (Playwright, server must run with demo data) · `make check-keys` · `docker compose up` (not verified, see PROGRESS).
+`make install && make test` (21 tests, ~2 min, demo test is slow) · `make lint` (ruff+mypy) · `make demo` (seed + serve :8000, console at /console/) · `make smoke` (Playwright, server must run with demo data) · `make check-keys` · `docker compose up` (not verified, see PROGRESS).
 Logins (DEMO_SEED): admin@example.com/change-me-admin, analyst@example.com/demo-analyst, buyer@example.com/demo-buyer, field@example.com/demo-field.
 
 ## Conventions
