@@ -1,6 +1,6 @@
 # GroundProof one-command local start for Windows PowerShell.
 # Usage (from the repo folder):  powershell -ExecutionPolicy Bypass -File .\start.ps1
-$ErrorActionPreference = "Stop"
+$ErrorActionPreference = "Continue"
 Set-Location $PSScriptRoot
 
 # 1. Find Python 3.12+
@@ -13,9 +13,11 @@ Write-Host "Using $py" -ForegroundColor Green
 
 # 2. Virtual environment + dependencies (first run takes a few minutes)
 if (-not (Test-Path ".venv")) { & cmd /c "$py -m venv .venv" }
-$venvPy = ".\.venv\Scripts\python.exe"
+$venvPy = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+if (-not (Test-Path $venvPy)) { Write-Host "Could not create the virtual environment (.venv). Delete the .venv folder and run again." -ForegroundColor Red; exit 1 }
 & $venvPy -m pip install --quiet --upgrade pip
-& $venvPy -m pip install --quiet -e ".\api[dev]"
+& $venvPy -m pip install --quiet -e (Join-Path $PSScriptRoot "api[dev]")
+if ($LASTEXITCODE -ne 0) { Write-Host "Package install failed (see messages above)." -ForegroundColor Red; exit 1 }
 
 # 3. Demo data, then start the server
 $env:PYTHONPATH = "$PSScriptRoot\api;$PSScriptRoot"
