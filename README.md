@@ -2,7 +2,16 @@
 
 Evidence to support due diligence (not certification) that supplier plots were not deforested after 31 Dec 2020.
 
-## Setup
+## Setup (Windows PowerShell)
+```powershell
+git clone https://github.com/jorgebendekj/groundproof.git
+cd groundproof
+git checkout claude/ecstatic-einstein-rsvy7m
+powershell -ExecutionPolicy Bypass -File .\start.ps1
+```
+Needs Python 3.12+ (https://www.python.org/downloads/). Then open http://localhost:8000/console/.
+
+## Setup (macOS / Linux)
 ```bash
 python3 -m venv .venv && . .venv/bin/activate
 make install
