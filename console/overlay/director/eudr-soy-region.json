@@ -1,0 +1,10 @@
+{
+  "name": "EUDR soy region tour",
+  "description": "A compliant soy plot beside one cleared after 2020 (Sorriso area, Mato Grosso). Synthetic demo geometry.",
+  "steps": [
+    {"say": "A European soy importer verifies supplier plots against the 31 December 2020 EUDR cutoff.", "flyTo": {"lon": -55.72, "lat": -12.45, "height": 60000}, "seconds": 6},
+    {"say": "This plot is compliant: stable crop seasonality, no clearing after the cutoff.", "select": "DEMO-COMPLIANT", "flyTo": {"lon": -55.108, "lat": -12.44, "height": 4000}, "seconds": 8},
+    {"say": "Its neighbour lost forest cover in August 2022. Sentinel-2 and Sentinel-1 radar agree.", "select": "DEMO-CLEARED", "layers": ["eoAlerts", "eoImagery"], "seconds": 10},
+    {"say": "An analyst confirms, and a signed evidence pack is exported. Evidence to support due diligence, not certification.", "seconds": 6}
+  ]
+}

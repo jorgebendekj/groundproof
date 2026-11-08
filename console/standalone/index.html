@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GroundProof Console</title>
+<style>
+:root{--bg:#0b1220;--fg:#e6edf7;--mut:#8aa0bd;--card:#131d33;--ok:#2ecc71;--risk:#f5a623;--bad:#e5484d;--und:#8e9aaf}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px system-ui;display:grid;grid-template-columns:1fr 360px;height:100vh}
+#map{background:#0f1a2e;width:100%;height:100%}aside{padding:12px;overflow:auto;background:var(--card)}
+button,input,select{font:inherit;padding:6px 10px;margin:2px;border-radius:6px;border:1px solid #2b3b5c;background:#1b2a47;color:var(--fg)}
+button{cursor:pointer}h3{margin:12px 0 6px}small,.mut{color:var(--mut)}.pill{padding:1px 8px;border-radius:99px;font-size:12px;color:#000}
+img{width:48%;image-rendering:pixelated;border-radius:4px}.row{display:flex;justify-content:space-between;gap:6px}
+polygon,circle{stroke:#000;stroke-width:.3;cursor:pointer;vector-effect:non-scaling-stroke}polygon:hover{stroke:#fff}
+.disc{font-size:11px;color:var(--mut);margin-top:10px}@media(max-width:800px){body{grid-template-columns:1fr;grid-template-rows:50vh 1fr}}
+</style></head><body>
+<svg id="map" role="img" aria-label="Plot map"></svg>
+<aside>
+<div id="auth"><b>GroundProof</b> <small>EUDR evidence console</small><br>
+<input id="em" placeholder="email" value="analyst@example.com"><input id="pw" type="password" placeholder="password" value="demo-analyst"><button id="login">Sign in</button></div>
+<div id="app" hidden>
+ <div class="row"><span id="who" class="mut"></span><span><button id="tour">▶ Demo tour</button><button id="refresh">↻</button></span></div>
+ <div id="legend"></div>
+ <h3>Upload plots</h3><input type="file" id="file" accept=".geojson,.json,.zip,.csv"><input id="sup" placeholder="supplier" value="Uploaded supplier"><button id="up">Upload</button><div id="upres" class="mut"></div>
+ <h3>Selected</h3><div id="sel" class="mut">Click a plot on the map.</div>
+ <h3>Review queue</h3><div id="queue"></div>
+</div>
+<p class="disc">Outputs are evidence to support due diligence, not certification. Contains modified Copernicus Sentinel data.</p>
+</aside>
+<script type="module">
+const C={compliant:'#2ecc71',at_risk:'#f5a623',cleared_after_2020:'#e5484d',undetermined:'#8e9aaf',unchecked:'#3b4a66'};
+let token=null,plots=[],bbox,selected=null;const $=s=>document.querySelector(s);
+const api=async(p,o={})=>{const r=await fetch('/api'+p,{...o,headers:{...(o.headers||{}),Authorization:'Bearer '+token,...(o.json?{'Content-Type':'application/json'}:{})},body:o.json?JSON.stringify(o.json):o.body});if(!r.ok)throw new Error((await r.json().catch(()=>({}))).detail||r.status);return r.headers.get('content-type')?.includes('json')?r.json():r.blob()};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+$('#login').onclick=async()=>{const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:$('#em').value,password:$('#pw').value})});if(!r.ok)return alert('Login failed');const j=await r.json();token=j.access_token;$('#auth').hidden=true;$('#app').hidden=false;$('#who').textContent=$('#em').value+' ('+j.role+')';await load()};
+async function load(){const g=await api('/eo/plots.geojson');plots=g.features;const xs=[],ys=[];const walk=c=>typeof c[0]==='number'?(xs.push(c[0]),ys.push(c[1])):c.forEach(walk);plots.forEach(f=>walk(f.geometry.coordinates));bbox=[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)];draw();legend();queue()}
+const proj=([x,y],b=bbox)=>[(x-b[0])/(b[2]-b[0]||1)*1000,(1-(y-b[1])/(b[3]-b[1]||1))*600];
+function draw(view=bbox){const m=$('#map');m.setAttribute('viewBox','-20 -20 1040 640');m.innerHTML='';
+ for(const f of plots){const p=f.properties,col=C[p.status]||C.unchecked;let el;
+  if(f.geometry.type==='Point'){const [x,y]=proj(f.geometry.coordinates,view);el=document.createElementNS('http://www.w3.org/2000/svg','circle');el.setAttribute('cx',x);el.setAttribute('cy',y);el.setAttribute('r',4)}
+  else{const ring=(f.geometry.type==='Polygon'?f.geometry.coordinates:f.geometry.coordinates[0])[0];el=document.createElementNS('http://www.w3.org/2000/svg','polygon');el.setAttribute('points',ring.map(c=>proj(c,view).join(',')).join(' '))}
+  el.setAttribute('fill',col);el.setAttribute('fill-opacity',p.id===selected?1:.75);el.onclick=()=>select(p.id);el.innerHTML='<title>'+esc(p.external_id)+' – '+esc(p.status)+'</title>';m.appendChild(el)}}
+function legend(){const n={};plots.forEach(f=>n[f.properties.status]=(n[f.properties.status]||0)+1);$('#legend').innerHTML=Object.entries(n).map(([k,v])=>`<span class="pill" style="background:${C[k]||C.unchecked}">${esc(k)} ${v}</span> `).join('')}
+async function select(id){selected=id;draw();const p=await api('/plots/'+id);const alerts=(await api('/alerts')).filter(a=>a.plot_id===id);
+ $('#sel').innerHTML=`<b>${esc(p.external_id)}</b> <span class="pill" style="background:${C[p.status]}">${esc(p.status)}</span> <small>conf ${p.confidence??'–'}</small><br><small>${esc(p.supplier)} · ${esc(p.commodity)} · ${p.area_ha??'point'} ha</small><ul>${(p.notes||[]).map(n=>'<li>'+esc(n)+'</li>').join('')}</ul>
+ <button id="bc">Cutoff check</button><button id="bm">Monitor</button><button id="bq">Request scene (quote)</button><div id="selx"></div>`;
+ $('#bc').onclick=async()=>{await api('/plots/'+id+'/check',{method:'POST'});await load();select(id)};
+ $('#bm').onclick=async()=>{await api('/plots/'+id+'/monitor',{method:'POST',json:{}});await load();select(id)};
+ $('#bq').onclick=async()=>{try{const o=await api('/tasking/quote',{method:'POST',json:{plot_id:id,start:'2025-01-01',end:'2025-01-10'}});$('#selx').textContent=`Quote #${o.id}: €${o.quote.price_eur}, ETA ${o.quote.eta_days} d (mock). Approval by an admin required.`}catch(e){$('#selx').textContent=e.message}};
+ for(const a of alerts)await alertCard(a,$('#selx'))}
+async function alertCard(a,host){const d=document.createElement('div');d.innerHTML=`<h3>Alert #${a.id} ${esc(a.type)}</h3><small>${esc(a.state)} · conf ${a.confidence} · first seen ${esc(a.first_seen.slice(0,10))} · ~${a.details.clearing_ha} ha · radar ${a.details.sar_corroborates?'corroborates':'no'}</small><br><small>Scenes: ${esc(a.scene_ids.join(', '))}</small><br>`;host.appendChild(d);
+ for(const w of['before','after']){try{const b=await api(`/alerts/${a.id}/preview/${w}`);const i=document.createElement('img');i.alt=w;i.src=URL.createObjectURL(b);d.appendChild(i)}catch{}}
+ if(['analyst','admin'].some(r=>$('#who').textContent.includes(r))){for(const [k,l] of[['confirm','Confirm'],['reject','Reject'],['request_field_check','Field check']]){const b=document.createElement('button');b.textContent=l;b.onclick=async()=>{await api(`/alerts/${a.id}/decision`,{method:'POST',json:{decision:k}});await load();select(a.plot_id)};d.appendChild(b)}}}
+async function queue(){try{const q=await api('/review/queue');$('#queue').innerHTML=q.alerts.map(a=>`<div><a href="#" data-p="${a.plot_id}">Alert #${a.id}</a> ${esc(a.type)} <small>${a.confidence}</small></div>`).join('')||'<span class="mut">Empty</span>';document.querySelectorAll('#queue a').forEach(x=>x.onclick=e=>{e.preventDefault();select(+x.dataset.p)})}catch{$('#queue').textContent='(analyst only)'}}
+$('#refresh').onclick=load;
+$('#up').onclick=async()=>{const f=$('#file').files[0];if(!f)return;const fd=new FormData();fd.append('file',f);fd.append('supplier_name',$('#sup').value);try{const r=await api('/plots/upload',{method:'POST',body:fd});$('#upres').textContent=`Stored ${r.stored}/${r.total}. `+Object.entries(r.counts).map(([k,v])=>k+':'+v).join(' ');await load()}catch(e){$('#upres').textContent=e.message}};
+$('#tour').onclick=async()=>{const find=n=>plots.find(f=>f.properties.external_id===n);const steps=[['DEMO-COMPLIANT','Step 1: a compliant soy plot. Stable crop seasonality, no clearing after 31 Dec 2020.'],['DEMO-CLEARED','Step 2: the neighbouring plot. Sentinel-2 shows NDVI collapse in Aug 2022 and Sentinel-1 radar agrees.']];
+ for(const [n,t] of steps){const f=find(n);if(!f)return alert('Run `python -m app.demo` first');const [x0,y0,x1,y1]=(()=>{const c=f.geometry.coordinates[0];const xs=c.map(a=>a[0]),ys=c.map(a=>a[1]);const cx=(Math.min(...xs)+Math.max(...xs))/2,cy=(Math.min(...ys)+Math.max(...ys))/2;return[cx-.03,cy-.02,cx+.03,cy+.02]})();
+  bbox=[x0,y0,x1,y1];draw(bbox);await select(f.properties.id);$('#selx').insertAdjacentHTML('afterbegin','<p><b>'+esc(t)+'</b></p>');await new Promise(r=>setTimeout(r,6000))}
+ await load()};
+</script></body></html>

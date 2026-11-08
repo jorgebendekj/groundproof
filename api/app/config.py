@@ -1,5 +1,6 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +32,16 @@ class Settings(BaseSettings):
     # C2PA / signing
     c2pa_cert_path: str = ""
     c2pa_key_path: str = ""
+
+
+    @field_validator("jwt_secret", "admin_password", mode="before")
+    @classmethod
+    def _empty_means_default(cls, v, info):
+        return v if v else cls.model_fields[info.field_name].default
+
+    @property
+    def insecure_defaults(self) -> bool:
+        return self.jwt_secret.startswith("dev-only") or self.admin_password == "change-me-admin"
 
 
 @lru_cache

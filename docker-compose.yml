@@ -1,0 +1,51 @@
+# GroundProof stack. `docker compose up` -> API+console on :8000. Everything runs without keys (mock/offline defaults).
+# NOTE: written without a Docker daemon available in the authoring environment; first run may need tweaks (docs/PROGRESS.md).
+services:
+  db:
+    image: ghcr.io/stac-utils/pgstac:v0.9.5   # PostgreSQL 16 + PostGIS + pgSTAC (shared with plots)
+    environment: {POSTGRES_USER: gp, POSTGRES_PASSWORD: gp, POSTGRES_DB: groundproof, PGUSER: gp, PGPASSWORD: gp, PGDATABASE: groundproof}
+    volumes: [dbdata:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U gp -d groundproof"], interval: 5s, retries: 20}
+  stac:
+    image: ghcr.io/stac-utils/stac-fastapi-pgstac:5.0.2
+    environment: {POSTGRES_USER: gp, POSTGRES_PASS: gp, POSTGRES_DBNAME: groundproof, POSTGRES_HOST_READER: db, POSTGRES_HOST_WRITER: db, POSTGRES_PORT: "5432", APP_HOST: 0.0.0.0, APP_PORT: "8081"}
+    ports: ["8081:8081"]
+    depends_on: {db: {condition: service_healthy}}
+  titiler:
+    image: ghcr.io/developmentseed/titiler:latest
+    ports: ["8082:8000"]
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment: {MINIO_ROOT_USER: minio, MINIO_ROOT_PASSWORD: minio-dev-secret}
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+  api:
+    build: {context: ., dockerfile: api/Dockerfile}
+    environment:
+      DATABASE_URL: postgresql+psycopg://gp:gp@db:5432/groundproof
+      STORAGE_DIR: /data/storage
+    env_file: [{path: .env, required: false}]
+    ports: ["8000:8000"]
+    volumes: [apidata:/data]
+    depends_on: {db: {condition: service_healthy}}
+    healthcheck: {test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://localhost:8000/health')"], interval: 10s, retries: 10}
+  worker:
+    build: {context: ., dockerfile: api/Dockerfile}
+    command: ["python", "-m", "workers.scheduler"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://gp:gp@db:5432/groundproof
+      STORAGE_DIR: /data/storage
+    env_file: [{path: .env, required: false}]
+    volumes: [apidata:/data]
+    depends_on: {api: {condition: service_healthy}}
+  # Optional: full God's Eye View console (after `make gev`). Standalone console is already served by the API at /console/.
+  gev:
+    profiles: ["gev"]
+    image: node:24-slim
+    working_dir: /app
+    volumes: ["./console/gev:/app"]
+    environment: {GP_API_URL: "http://api:8000", GP_API_EMAIL: "${GP_API_EMAIL:-analyst@example.com}", GP_API_PASSWORD: "${GP_API_PASSWORD:-demo-analyst}"}
+    command: sh -c "npm ci && npm run dev -- --host 0.0.0.0"
+    ports: ["5173:5173"]
+volumes: {dbdata: {}, miniodata: {}, apidata: {}}

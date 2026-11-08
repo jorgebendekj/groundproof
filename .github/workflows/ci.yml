@@ -1,0 +1,20 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: cd api && pip install -e ".[dev]"
+      - run: cd api && ruff check . && mypy app
+      - run: cd api && pytest -q
+      - run: cd workers && ruff check --config ../api/pyproject.toml .
+  console:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: 22}
+      - run: for f in console/overlay/server/providers/*.js console/overlay/src/layers/*/index.js; do node --check --input-type=module < $f; done

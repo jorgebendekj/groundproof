@@ -17,6 +17,8 @@ from .routers import field, plots, review
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    if get_settings().insecure_defaults and not get_settings().demo_seed:
+        raise RuntimeError("Refusing to start: set JWT_SECRET and ADMIN_PASSWORD when DEMO_SEED=false")
     init_db()
     with SessionLocal() as db:
         seed(db)
