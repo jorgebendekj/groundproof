@@ -9,3 +9,6 @@ data/
 node_modules/
 console/gev/
 *.db
+*.egg-info/
+build/
+dist/
